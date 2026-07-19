@@ -8,6 +8,12 @@ export type ContentType =
   | 'infographic'
   | 'other'
 
+export interface PlatformStat {
+  platform: string
+  downloads: number
+  views: number
+}
+
 export interface ContentItem {
   id: string
   title: string
@@ -15,9 +21,11 @@ export interface ContentItem {
   type: ContentType
   side: Side
   excerpt: string
-  views: number
+  views: number // aggregated across all platforms
+  downloads: number // aggregated across all platforms
   words: number
   createdAt: string // ISO date
+  platforms: PlatformStat[]
 }
 
 export const CONTENT_TYPES: { value: ContentType; label: string }[] = [
@@ -99,7 +107,7 @@ export function classifySide(text: string): { side: Side; confidence: number } {
   return { side, confidence }
 }
 
-export const SEED_CONTENT: ContentItem[] = [
+const RAW_SEED = [
   {
     id: 'f1',
     title: 'The Citadel of the Double Helix',
@@ -221,3 +229,30 @@ export const SEED_CONTENT: ContentItem[] = [
     createdAt: '2026-07-04',
   },
 ]
+
+// Distribute each seed item's views across a couple of platforms and derive a
+// plausible download count, so the demo library exercises the per-platform
+// analytics until real official data is fed in.
+export const SEED_CONTENT: ContentItem[] = RAW_SEED.map((r) => {
+  const platformsBySide: Record<Side, string[]> =
+    r.side === 'fiction'
+      ? { fiction: ['Website', 'Wattpad', 'Amazon'], nonfiction: [] }
+      : { fiction: [], nonfiction: ['Website', 'Amazon', 'ResearchGate'] }
+  const names = platformsBySide[r.side as Side]
+  const splits = [0.55, 0.3, 0.15]
+  const platforms: PlatformStat[] = names.map((platform, i) => ({
+    platform,
+    views: Math.round(r.views * splits[i]),
+    downloads: Math.round(r.views * splits[i] * 0.42),
+  }))
+  const views = platforms.reduce((s, p) => s + p.views, 0)
+  const downloads = platforms.reduce((s, p) => s + p.downloads, 0)
+  return {
+    ...r,
+    type: r.type as ContentType,
+    side: r.side as Side,
+    views,
+    downloads,
+    platforms,
+  }
+})

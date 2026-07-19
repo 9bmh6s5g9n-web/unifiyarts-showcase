@@ -7,10 +7,10 @@ import { CONTENT_TYPES, TYPE_LABEL, type ContentType } from "@/lib/types"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Eye } from "lucide-react"
+import { Eye, Download } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-export function ShowcaseGallery() {
+export function ShowcaseGallery({ isDemo = false }: { isDemo?: boolean }) {
   const { items, world } = useLibrary()
   const [type, setType] = useState<ContentType | "all">("all")
 
@@ -39,6 +39,11 @@ export function ShowcaseGallery() {
             Every book, article, portfolio, video, and infographic in the{" "}
             {world === "fiction" ? "fiction" : "non-fiction"} collection.
           </p>
+          {isDemo && (
+            <p className="mx-auto mt-1 rounded-full bg-secondary px-4 py-1.5 text-xs text-muted-foreground">
+              Showing sample data. Sign in and open Manage to add your own works.
+            </p>
+          )}
         </div>
 
         <div className="mb-8 flex flex-wrap items-center justify-center gap-2">
@@ -72,9 +77,15 @@ export function ShowcaseGallery() {
                     <TypeIcon type={item.type} className="size-3.5" />
                     {TYPE_LABEL[item.type]}
                   </Badge>
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Eye className="size-3.5" />
-                    {item.views.toLocaleString()}
+                  <span className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Download className="size-3.5" />
+                      {item.downloads.toLocaleString()}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Eye className="size-3.5" />
+                      {item.views.toLocaleString()}
+                    </span>
                   </span>
                 </CardHeader>
                 <CardContent className="flex-1">
