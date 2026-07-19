@@ -4,8 +4,15 @@ import { researchEntries, works } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import { headers } from "next/headers"
 import { convertToModelMessages, streamText, type UIMessage } from "ai"
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible"
 
 export const maxDuration = 30
+
+// Cloudflare Workers AI, called through its OpenAI-compatible endpoint.
+// Needs CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN (Workers AI permission).
+const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID
+const CF_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN
+const CF_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
 
 const SYSTEM = `You are the Coherence Engine for UnifyArts.academy — a research assistant that reads across the author's own body of work to find coherence: hidden connections, recurring themes, and through-lines between their research notes and creative works.
 
@@ -21,6 +28,13 @@ export async function POST(req: Request) {
     return new Response("Unauthorized", { status: 401 })
   }
   const userId = session.user.id
+
+  if (!CF_ACCOUNT_ID || !CF_API_TOKEN) {
+    return new Response(
+      "The Coherence Engine isn't connected yet. Add your Cloudflare account ID and API token to switch it on.",
+      { status: 503 },
+    )
+  }
 
   const { messages }: { messages: UIMessage[] } = await req.json()
 
@@ -45,8 +59,14 @@ export async function POST(req: Request) {
     [researchText, worksText].filter(Boolean).join("\n\n") ||
     "(The author has not added any research entries or works yet.)"
 
+  const cloudflare = createOpenAICompatible({
+    name: "cloudflare-workers-ai",
+    baseURL: `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/v1`,
+    apiKey: CF_API_TOKEN,
+  })
+
   const result = streamText({
-    model: "anthropic/claude-sonnet-4.5",
+    model: cloudflare(CF_MODEL),
     instructions: `${SYSTEM}\n\n=== THE AUTHOR'S MATERIAL ===\n${corpus}`,
     messages: await convertToModelMessages(messages),
   })
