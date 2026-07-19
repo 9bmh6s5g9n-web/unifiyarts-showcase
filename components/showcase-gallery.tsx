@@ -19,7 +19,13 @@ function formatDate(iso: string) {
   return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`
 }
 
-export function ShowcaseGallery({ isDemo = false }: { isDemo?: boolean }) {
+export function ShowcaseGallery({
+  authed = false,
+  isEmpty = false,
+}: {
+  authed?: boolean
+  isEmpty?: boolean
+}) {
   const { items, world } = useLibrary()
   const [type, setType] = useState<ContentType | "all">("all")
 
@@ -48,9 +54,9 @@ export function ShowcaseGallery({ isDemo = false }: { isDemo?: boolean }) {
             Every book, article, portfolio, video, and infographic in the{" "}
             {world === "fiction" ? "fiction" : "non-fiction"} collection.
           </p>
-          {isDemo && (
+          {isEmpty && authed && (
             <p className="mx-auto mt-1 rounded-full bg-secondary px-4 py-1.5 text-xs text-muted-foreground">
-              Showing sample data. Sign in and open Manage to add your own works.
+              This is your space. Open Manage to add your first works.
             </p>
           )}
         </div>

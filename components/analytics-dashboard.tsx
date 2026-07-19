@@ -42,7 +42,7 @@ const platformConfig = {
   nonfiction: { label: "Non-fiction", color: NONFICTION_COLOR },
 } satisfies ChartConfig
 
-export function AnalyticsDashboard({ isDemo = false }: { isDemo?: boolean }) {
+export function AnalyticsDashboard({ isEmpty = false }: { isEmpty?: boolean }) {
   const { items } = useLibrary()
 
   const totals = useMemo(() => libraryTotals(items), [items])
@@ -77,13 +77,20 @@ export function AnalyticsDashboard({ isDemo = false }: { isDemo?: boolean }) {
             The academy reads your whole library — downloads, views, and where they come from — and
             splits it into its two sides, the luminous and the cosmic.
           </p>
-          {isDemo && (
-            <p className="mx-auto mt-3 inline-block rounded-full bg-secondary px-4 py-1.5 text-xs text-muted-foreground">
-              Sample numbers shown. Sign in and open Manage to feed your official data.
-            </p>
-          )}
         </div>
 
+        {isEmpty && (
+          <div className="rounded-2xl border border-dashed border-border bg-card/40 px-6 py-16 text-center">
+            <p className="font-serif text-2xl font-light text-balance">Your analytics will appear here</p>
+            <p className="mx-auto mt-2 max-w-md text-pretty leading-relaxed text-muted-foreground">
+              Once you add your works and your own numbers in Manage, the academy will chart them
+              across the fiction and non-fiction sides.
+            </p>
+          </div>
+        )}
+
+        {!isEmpty && (
+        <>
         {/* Headline totals */}
         <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <HeadlineStat
@@ -208,6 +215,8 @@ export function AnalyticsDashboard({ isDemo = false }: { isDemo?: boolean }) {
             subtitle="The cosmic side"
           />
         </div>
+        </>
+        )}
       </div>
     </section>
   )

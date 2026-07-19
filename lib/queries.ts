@@ -1,8 +1,8 @@
 import "server-only"
 import { db } from "@/lib/db"
-import { works, workStats } from "@/lib/db/schema"
-import { desc } from "drizzle-orm"
-import type { ContentItem, ContentType, PlatformStat, Side } from "@/lib/types"
+import { works, workStats, artPieces, authorLinks } from "@/lib/db/schema"
+import { asc, desc } from "drizzle-orm"
+import type { ArtPiece, AuthorLink, ContentItem, ContentType, PlatformStat, Side } from "@/lib/types"
 
 /**
  * Public read: returns every work in the library with its per-platform stats
@@ -34,6 +34,8 @@ export async function getWorks(): Promise<ContentItem[]> {
       type: w.type as ContentType,
       side: w.side as Side,
       excerpt: w.excerpt,
+      coverUrl: w.coverUrl,
+      link: w.link,
       words: w.words,
       createdAt:
         w.createdAt instanceof Date ? w.createdAt.toISOString() : String(w.createdAt),
@@ -42,4 +44,40 @@ export async function getWorks(): Promise<ContentItem[]> {
       platforms,
     }
   })
+}
+
+/** Public read: all art pieces, ordered by the owner's manual sort then newest. */
+export async function getArtPieces(): Promise<ArtPiece[]> {
+  const rows = await db
+    .select()
+    .from(artPieces)
+    .orderBy(asc(artPieces.sort), desc(artPieces.createdAt))
+
+  return rows.map((a) => ({
+    id: String(a.id),
+    title: a.title,
+    description: a.description,
+    imageUrl: a.imageUrl,
+    side: a.side as Side,
+    isBookCover: a.isBookCover,
+    featured: a.featured,
+    sort: a.sort,
+    createdAt:
+      a.createdAt instanceof Date ? a.createdAt.toISOString() : String(a.createdAt),
+  }))
+}
+
+/** Public read: author / publication links. */
+export async function getAuthorLinks(): Promise<AuthorLink[]> {
+  const rows = await db
+    .select()
+    .from(authorLinks)
+    .orderBy(asc(authorLinks.sort), asc(authorLinks.id))
+
+  return rows.map((l) => ({
+    id: String(l.id),
+    label: l.label,
+    url: l.url,
+    sort: l.sort,
+  }))
 }

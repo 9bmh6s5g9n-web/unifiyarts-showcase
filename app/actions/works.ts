@@ -2,8 +2,8 @@
 
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { works, workStats } from "@/lib/db/schema"
-import { SEED_CONTENT, type Side } from "@/lib/types"
+import { works, workStats, artPieces, authorLinks } from "@/lib/db/schema"
+import type { Side } from "@/lib/types"
 import { and, eq } from "drizzle-orm"
 import { headers } from "next/headers"
 import { revalidatePath } from "next/cache"
@@ -26,6 +26,8 @@ export interface WorkInput {
   type: string
   side: Side
   excerpt: string
+  coverUrl: string
+  link: string
   words: number
   platforms: PlatformInput[]
 }
@@ -45,6 +47,8 @@ export async function createWork(input: WorkInput) {
       type: input.type || "other",
       side: input.side,
       excerpt: input.excerpt.trim(),
+      coverUrl: input.coverUrl?.trim() || "",
+      link: input.link?.trim() || "",
       words: Number.isFinite(input.words) ? input.words : 0,
     })
     .returning({ id: works.id })
@@ -150,36 +154,84 @@ export async function importWorks(rows: CsvRow[]) {
   return imported
 }
 
-/** One-click demo: load the sample library so the site looks alive. */
-export async function seedDemoData() {
-  const userId = await getUserId()
-  for (const item of SEED_CONTENT) {
-    const [row] = await db
-      .insert(works)
-      .values({
-        userId,
-        title: item.title,
-        creator: item.creator,
-        type: item.type,
-        side: item.side,
-        excerpt: item.excerpt,
-        words: item.words,
-      })
-      .returning({ id: works.id })
+// --- Art pieces ------------------------------------------------------------
 
-    if (item.platforms.length > 0) {
-      await db.insert(workStats).values(
-        item.platforms.map((p) => ({
-          userId,
-          workId: row.id,
-          platform: p.platform,
-          downloads: p.downloads,
-          views: p.views,
-        })),
-      )
-    }
-  }
+export interface ArtInput {
+  title: string
+  description: string
+  imageUrl: string
+  side: Side
+  isBookCover: boolean
+  featured: boolean
+}
+
+export async function createArtPiece(input: ArtInput) {
+  const userId = await getUserId()
+  const title = input.title.trim()
+  if (!title) throw new Error("Title is required")
+  if (!input.imageUrl.trim()) throw new Error("An image is required")
+
+  await db.insert(artPieces).values({
+    userId,
+    title,
+    description: input.description.trim(),
+    imageUrl: input.imageUrl.trim(),
+    side: input.side,
+    isBookCover: input.isBookCover,
+    featured: input.featured,
+  })
+
+  revalidatePath("/")
+  revalidatePath("/gallery")
+  revalidatePath("/manage")
+}
+
+export async function updateArtPiece(id: number, input: Partial<ArtInput>) {
+  const userId = await getUserId()
+  const patch: Record<string, unknown> = {}
+  if (input.title !== undefined) patch.title = input.title.trim()
+  if (input.description !== undefined) patch.description = input.description.trim()
+  if (input.imageUrl !== undefined) patch.imageUrl = input.imageUrl.trim()
+  if (input.side !== undefined) patch.side = input.side
+  if (input.isBookCover !== undefined) patch.isBookCover = input.isBookCover
+  if (input.featured !== undefined) patch.featured = input.featured
+  if (Object.keys(patch).length === 0) return
+
+  await db
+    .update(artPieces)
+    .set(patch)
+    .where(and(eq(artPieces.id, id), eq(artPieces.userId, userId)))
+
+  revalidatePath("/")
+  revalidatePath("/gallery")
+  revalidatePath("/manage")
+}
+
+export async function deleteArtPiece(id: number) {
+  const userId = await getUserId()
+  await db.delete(artPieces).where(and(eq(artPieces.id, id), eq(artPieces.userId, userId)))
+  revalidatePath("/")
+  revalidatePath("/gallery")
+  revalidatePath("/manage")
+}
+
+// --- Author links ----------------------------------------------------------
+
+export async function createAuthorLink(label: string, url: string) {
+  const userId = await getUserId()
+  const l = label.trim()
+  const u = url.trim()
+  if (!l || !u) throw new Error("Label and URL are required")
+  await db.insert(authorLinks).values({ userId, label: l, url: u })
   revalidatePath("/")
   revalidatePath("/manage")
-  return SEED_CONTENT.length
 }
+
+export async function deleteAuthorLink(id: number) {
+  const userId = await getUserId()
+  await db.delete(authorLinks).where(and(eq(authorLinks.id, id), eq(authorLinks.userId, userId)))
+  revalidatePath("/")
+  revalidatePath("/manage")
+}
+
+
