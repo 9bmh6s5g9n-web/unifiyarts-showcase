@@ -8,6 +8,7 @@ import { Moon, Sun, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const SECTIONS = [
+  { id: "gallery", label: "Gallery" },
   { id: "showcase", label: "Showcase" },
   { id: "analytics", label: "Analytics" },
 ]

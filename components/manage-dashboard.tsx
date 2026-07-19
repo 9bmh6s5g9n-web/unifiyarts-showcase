@@ -9,6 +9,10 @@ import {
   importWorks,
   createResearchEntry,
   deleteResearchEntry,
+  createArtPiece,
+  deleteArtPiece,
+  createAuthorLink,
+  deleteAuthorLink,
   type PlatformInput,
 } from "@/app/actions/works"
 import { authClient } from "@/lib/auth-client"
@@ -16,6 +20,8 @@ import {
   classifySide,
   CONTENT_TYPES,
   TYPE_LABEL,
+  type ArtPiece,
+  type AuthorLink,
   type ContentItem,
   type ContentType,
   type ResearchEntry,
@@ -39,6 +45,8 @@ import {
   Upload,
   CheckCircle2,
   FlaskConical,
+  Palette,
+  LinkIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -94,10 +102,14 @@ function parseCsv(text: string): Record<string, string>[] {
 export function ManageDashboard({
   items,
   research,
+  art,
+  links,
   userName,
 }: {
   items: ContentItem[]
   research: ResearchEntry[]
+  art: ArtPiece[]
+  links: AuthorLink[]
   userName: string
 }) {
   const router = useRouter()
@@ -162,6 +174,36 @@ export function ManageDashboard({
         </div>
 
         <WorksList items={items} isPending={isPending} startTransition={startTransition} />
+
+        <div className="mt-12">
+          <div className="mb-6 flex items-center gap-2">
+            <Palette className="size-5 text-primary" />
+            <h2 className="font-serif text-2xl font-light tracking-tight">Art gallery</h2>
+          </div>
+          <p className="mb-6 max-w-2xl text-sm text-muted-foreground">
+            Add your art pieces and book covers. Paste an image link for each one and write your own
+            title and description. These appear on the home page and the public Gallery.
+          </p>
+          <div className="grid gap-8 lg:grid-cols-2">
+            <ArtForm isPending={isPending} startTransition={startTransition} />
+            <ArtList pieces={art} isPending={isPending} startTransition={startTransition} />
+          </div>
+        </div>
+
+        <div className="mt-12">
+          <div className="mb-6 flex items-center gap-2">
+            <LinkIcon className="size-5 text-primary" />
+            <h2 className="font-serif text-2xl font-light tracking-tight">Author &amp; publication links</h2>
+          </div>
+          <p className="mb-6 max-w-2xl text-sm text-muted-foreground">
+            Add links to your author profile, publications, and socials. These are shown in the site
+            footer.
+          </p>
+          <div className="grid gap-8 lg:grid-cols-2">
+            <LinksForm isPending={isPending} startTransition={startTransition} />
+            <LinksList links={links} isPending={isPending} startTransition={startTransition} />
+          </div>
+        </div>
 
         <div className="mt-12">
           <div className="mb-6 flex items-center gap-2">
@@ -479,6 +521,307 @@ function CsvImport({
             {error}
           </p>
         )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function ArtForm({
+  isPending,
+  startTransition,
+}: {
+  isPending: boolean
+  startTransition: (cb: () => void) => void
+}) {
+  const router = useRouter()
+  const [title, setTitle] = useState("")
+  const [description, setDescription] = useState("")
+  const [imageUrl, setImageUrl] = useState("")
+  const [side, setSide] = useState<Side>("fiction")
+  const [isBookCover, setIsBookCover] = useState(false)
+  const [featured, setFeatured] = useState(false)
+  const [saved, setSaved] = useState<string | null>(null)
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!title.trim() || !imageUrl.trim()) return
+    startTransition(async () => {
+      await createArtPiece({ title, description, imageUrl, side, isBookCover, featured })
+      setSaved(title.trim())
+      setTitle("")
+      setDescription("")
+      setImageUrl("")
+      setIsBookCover(false)
+      setFeatured(false)
+      router.refresh()
+    })
+  }
+
+  return (
+    <Card className="border-border/70">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 font-serif text-xl font-medium">
+          <Plus className="size-5 text-primary" /> Add art / book cover
+        </CardTitle>
+        <CardDescription>Paste an image link and describe the piece.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="grid gap-5">
+          <div className="grid gap-2">
+            <Label htmlFor="a-title">Title</Label>
+            <Input id="a-title" value={title} onChange={(e) => setTitle(e.target.value)} required className="text-base" />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="a-image">Image link (URL)</Label>
+            <Input
+              id="a-image"
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              placeholder="https://..."
+              required
+              className="text-base"
+            />
+            {imageUrl.trim() && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={imageUrl || "/placeholder.svg"}
+                alt="Preview"
+                className="mt-1 max-h-40 w-full rounded-lg border border-border object-cover"
+              />
+            )}
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="a-desc">Description</Label>
+            <Textarea
+              id="a-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Your own words about this piece."
+              className="min-h-24 text-base"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="a-side">World</Label>
+            <Select value={side} onValueChange={(v) => setSide(v as Side)}>
+              <SelectTrigger id="a-side">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="fiction">Fiction (luminous)</SelectItem>
+                <SelectItem value="nonfiction">Non-fiction (cosmic)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-wrap gap-4">
+            <label className="flex min-h-11 items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={isBookCover}
+                onChange={(e) => setIsBookCover(e.target.checked)}
+                className="size-4 accent-primary"
+              />
+              This is a book cover
+            </label>
+            <label className="flex min-h-11 items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={featured}
+                onChange={(e) => setFeatured(e.target.checked)}
+                className="size-4 accent-primary"
+              />
+              Feature on home page
+            </label>
+          </div>
+          <Button type="submit" size="lg" disabled={isPending} className="min-h-11 rounded-full">
+            {isPending ? "Saving..." : "Add to gallery"}
+          </Button>
+          {saved && (
+            <div className="flex items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 p-3 text-sm">
+              <CheckCircle2 className="size-4 text-primary" />
+              <span>
+                <span className="font-semibold">{saved}</span> added to your gallery.
+              </span>
+            </div>
+          )}
+        </form>
+      </CardContent>
+    </Card>
+  )
+}
+
+function ArtList({
+  pieces,
+  isPending,
+  startTransition,
+}: {
+  pieces: ArtPiece[]
+  isPending: boolean
+  startTransition: (cb: () => void) => void
+}) {
+  const router = useRouter()
+
+  return (
+    <Card className="border-border/70">
+      <CardHeader>
+        <CardTitle className="font-serif text-xl font-medium">Your gallery ({pieces.length})</CardTitle>
+        <CardDescription>Shown on the home page and public Gallery.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-2">
+        {pieces.length === 0 && (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            No art yet. Add your first piece to fill the gallery.
+          </p>
+        )}
+        {pieces.map((piece) => (
+          <div
+            key={piece.id}
+            className="flex items-center gap-3 rounded-xl border border-border/60 bg-card/50 p-3"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={piece.imageUrl || "/placeholder.svg"}
+              alt={piece.title}
+              className="size-14 shrink-0 rounded-lg border border-border object-cover"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium">{piece.title}</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {piece.isBookCover ? "Book cover" : "Art piece"}
+                {piece.featured ? " · Featured" : ""}
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() =>
+                startTransition(async () => {
+                  await deleteArtPiece(Number(piece.id))
+                  router.refresh()
+                })
+              }
+              className="shrink-0 rounded-md p-2 text-muted-foreground transition-colors hover:text-destructive disabled:opacity-50"
+              aria-label={`Delete ${piece.title}`}
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  )
+}
+
+function LinksForm({
+  isPending,
+  startTransition,
+}: {
+  isPending: boolean
+  startTransition: (cb: () => void) => void
+}) {
+  const router = useRouter()
+  const [label, setLabel] = useState("")
+  const [url, setUrl] = useState("")
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!label.trim() || !url.trim()) return
+    startTransition(async () => {
+      await createAuthorLink(label, url)
+      setLabel("")
+      setUrl("")
+      router.refresh()
+    })
+  }
+
+  return (
+    <Card className="border-border/70">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 font-serif text-xl font-medium">
+          <Plus className="size-5 text-primary" /> Add a link
+        </CardTitle>
+        <CardDescription>Author profile, publication, or social.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="grid gap-5">
+          <div className="grid gap-2">
+            <Label htmlFor="l-label">Label</Label>
+            <Input
+              id="l-label"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="Amazon Author Page"
+              required
+              className="text-base"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="l-url">URL</Label>
+            <Input
+              id="l-url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://..."
+              required
+              className="text-base"
+            />
+          </div>
+          <Button type="submit" size="lg" disabled={isPending} className="min-h-11 rounded-full">
+            {isPending ? "Saving..." : "Add link"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  )
+}
+
+function LinksList({
+  links,
+  isPending,
+  startTransition,
+}: {
+  links: AuthorLink[]
+  isPending: boolean
+  startTransition: (cb: () => void) => void
+}) {
+  const router = useRouter()
+
+  return (
+    <Card className="border-border/70">
+      <CardHeader>
+        <CardTitle className="font-serif text-xl font-medium">Your links ({links.length})</CardTitle>
+        <CardDescription>Shown in the site footer.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-2">
+        {links.length === 0 && (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            No links yet. Add your author or publication link.
+          </p>
+        )}
+        {links.map((link) => (
+          <div
+            key={link.id}
+            className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-card/50 p-3"
+          >
+            <div className="min-w-0">
+              <p className="truncate font-medium">{link.label}</p>
+              <p className="truncate text-xs text-muted-foreground">{link.url}</p>
+            </div>
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() =>
+                startTransition(async () => {
+                  await deleteAuthorLink(Number(link.id))
+                  router.refresh()
+                })
+              }
+              className="shrink-0 rounded-md p-2 text-muted-foreground transition-colors hover:text-destructive disabled:opacity-50"
+              aria-label={`Delete ${link.label}`}
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </div>
+        ))}
       </CardContent>
     </Card>
   )
