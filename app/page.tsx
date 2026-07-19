@@ -1,7 +1,6 @@
 import { headers } from "next/headers"
 import { auth } from "@/lib/auth"
 import { getWorks } from "@/lib/queries"
-import { SEED_CONTENT } from "@/lib/types"
 import { LibraryProvider } from "@/components/library-provider"
 import { SiteHeader } from "@/components/site-header"
 import { WorldSection } from "@/components/world-section"
@@ -15,9 +14,9 @@ export default async function HomePage() {
     auth.api.getSession({ headers: await headers() }).catch(() => null),
   ])
 
-  // Until real works are added, show the demo library so the site looks alive.
-  const items = dbItems.length > 0 ? dbItems : SEED_CONTENT
-  const isDemo = dbItems.length === 0
+  // Only ever show real works that the owner has added. No sample data.
+  const items = dbItems
+  const isEmpty = items.length === 0
 
   return (
     <LibraryProvider initialItems={items}>
@@ -26,8 +25,8 @@ export default async function HomePage() {
         <main>
           <WorldSection variant="fiction" />
           <WorldSection variant="nonfiction" />
-          <ShowcaseGallery isDemo={isDemo} />
-          <AnalyticsDashboard isDemo={isDemo} />
+          <ShowcaseGallery authed={!!session?.user} isEmpty={isEmpty} />
+          <AnalyticsDashboard isEmpty={isEmpty} />
         </main>
         <SiteFooter />
       </div>
