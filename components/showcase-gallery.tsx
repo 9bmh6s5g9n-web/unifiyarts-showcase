@@ -10,6 +10,15 @@ import { Button } from "@/components/ui/button"
 import { Eye, Download } from "lucide-react"
 import { cn } from "@/lib/utils"
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+// Deterministic UTC formatting so server and client render identical text (avoids hydration mismatch).
+function formatDate(iso: string) {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ""
+  return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`
+}
+
 export function ShowcaseGallery({ isDemo = false }: { isDemo?: boolean }) {
   const { items, world } = useLibrary()
   const [type, setType] = useState<ContentType | "all">("all")
@@ -98,12 +107,7 @@ export function ShowcaseGallery({ isDemo = false }: { isDemo?: boolean }) {
                 </CardContent>
                 <CardFooter className="justify-between border-t border-border/60 pt-4">
                   <span className="text-sm text-muted-foreground">{item.creator}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(item.createdAt).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </span>
+                  <span className="text-xs text-muted-foreground">{formatDate(item.createdAt)}</span>
                 </CardFooter>
               </Card>
             ))}
