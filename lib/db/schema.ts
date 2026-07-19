@@ -94,6 +94,17 @@ export const authorLinks = pgTable("author_links", {
   createdAt: timestamp("createdAt").notNull().defaultNow(),
 })
 
+// Research notes / files the Coherence assistant reads across to find connections.
+export const researchEntries = pgTable("research_entries", {
+  id: serial("id").primaryKey(),
+  userId: text("userId").notNull(),
+  title: text("title").notNull(),
+  content: text("content").notNull().default(""),
+  doi: text("doi").notNull().default(""),
+  tags: text("tags").notNull().default(""),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+})
+
 // Per-platform performance for a work. One work can have many rows
 // (e.g. Amazon, Website, YouTube), each with its own downloads + views.
 export const workStats = pgTable("work_stats", {

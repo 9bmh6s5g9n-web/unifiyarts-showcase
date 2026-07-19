@@ -1,8 +1,16 @@
 import "server-only"
 import { db } from "@/lib/db"
-import { works, workStats, artPieces, authorLinks } from "@/lib/db/schema"
-import { asc, desc } from "drizzle-orm"
-import type { ArtPiece, AuthorLink, ContentItem, ContentType, PlatformStat, Side } from "@/lib/types"
+import { works, workStats, artPieces, authorLinks, researchEntries } from "@/lib/db/schema"
+import { asc, desc, eq } from "drizzle-orm"
+import type {
+  ArtPiece,
+  AuthorLink,
+  ContentItem,
+  ContentType,
+  PlatformStat,
+  ResearchEntry,
+  Side,
+} from "@/lib/types"
 
 /**
  * Public read: returns every work in the library with its per-platform stats
@@ -64,6 +72,25 @@ export async function getArtPieces(): Promise<ArtPiece[]> {
     sort: a.sort,
     createdAt:
       a.createdAt instanceof Date ? a.createdAt.toISOString() : String(a.createdAt),
+  }))
+}
+
+/** Private read: this owner's research entries (used by the Coherence Engine). */
+export async function getResearchEntries(userId: string): Promise<ResearchEntry[]> {
+  const rows = await db
+    .select()
+    .from(researchEntries)
+    .where(eq(researchEntries.userId, userId))
+    .orderBy(desc(researchEntries.createdAt))
+
+  return rows.map((r) => ({
+    id: String(r.id),
+    title: r.title,
+    content: r.content,
+    doi: r.doi,
+    tags: r.tags,
+    createdAt:
+      r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
   }))
 }
 

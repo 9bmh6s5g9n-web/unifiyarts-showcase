@@ -49,6 +49,15 @@ export interface AuthorLink {
   sort: number
 }
 
+export interface ResearchEntry {
+  id: string
+  title: string
+  content: string
+  doi: string
+  tags: string
+  createdAt: string
+}
+
 export const CONTENT_TYPES: { value: ContentType; label: string }[] = [
   { value: 'book', label: 'Book' },
   { value: 'article', label: 'Article' },

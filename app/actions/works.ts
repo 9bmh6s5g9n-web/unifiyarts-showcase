@@ -2,7 +2,7 @@
 
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { works, workStats, artPieces, authorLinks } from "@/lib/db/schema"
+import { works, workStats, artPieces, authorLinks, researchEntries } from "@/lib/db/schema"
 import type { Side } from "@/lib/types"
 import { and, eq } from "drizzle-orm"
 import { headers } from "next/headers"
@@ -232,6 +232,37 @@ export async function deleteAuthorLink(id: number) {
   await db.delete(authorLinks).where(and(eq(authorLinks.id, id), eq(authorLinks.userId, userId)))
   revalidatePath("/")
   revalidatePath("/manage")
+}
+
+// --- Research entries (for the Coherence assistant) ------------------------
+
+export interface ResearchInput {
+  title: string
+  content: string
+  doi: string
+  tags: string
+}
+
+export async function createResearchEntry(input: ResearchInput) {
+  const userId = await getUserId()
+  const title = input.title.trim()
+  if (!title) throw new Error("Title is required")
+  await db.insert(researchEntries).values({
+    userId,
+    title,
+    content: input.content.trim(),
+    doi: input.doi.trim(),
+    tags: input.tags.trim(),
+  })
+  revalidatePath("/manage")
+  revalidatePath("/coherence")
+}
+
+export async function deleteResearchEntry(id: number) {
+  const userId = await getUserId()
+  await db.delete(researchEntries).where(and(eq(researchEntries.id, id), eq(researchEntries.userId, userId)))
+  revalidatePath("/manage")
+  revalidatePath("/coherence")
 }
 
 

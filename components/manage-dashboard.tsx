@@ -3,9 +3,24 @@
 import { useMemo, useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { createWork, deleteWork, importWorks, seedDemoData, type PlatformInput } from "@/app/actions/works"
+import {
+  createWork,
+  deleteWork,
+  importWorks,
+  createResearchEntry,
+  deleteResearchEntry,
+  type PlatformInput,
+} from "@/app/actions/works"
 import { authClient } from "@/lib/auth-client"
-import { classifySide, CONTENT_TYPES, TYPE_LABEL, type ContentItem, type ContentType, type Side } from "@/lib/types"
+import {
+  classifySide,
+  CONTENT_TYPES,
+  TYPE_LABEL,
+  type ContentItem,
+  type ContentType,
+  type ResearchEntry,
+  type Side,
+} from "@/lib/types"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -23,6 +38,7 @@ import {
   Trash2,
   Upload,
   CheckCircle2,
+  FlaskConical,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -75,7 +91,15 @@ function parseCsv(text: string): Record<string, string>[] {
   })
 }
 
-export function ManageDashboard({ items, userName }: { items: ContentItem[]; userName: string }) {
+export function ManageDashboard({
+  items,
+  research,
+  userName,
+}: {
+  items: ContentItem[]
+  research: ResearchEntry[]
+  userName: string
+}) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
@@ -94,6 +118,14 @@ export function ManageDashboard({ items, userName }: { items: ContentItem[]; use
             <span className="text-xs font-medium tracking-widest text-primary">.ACADEMY</span>
           </div>
           <div className="flex items-center gap-2">
+            <Link
+              href="/coherence"
+              className="flex min-h-9 items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+            >
+              <Sparkles className="size-4" />
+              <span className="hidden sm:inline">Coherence Engine</span>
+              <span className="sm:hidden">Coherence</span>
+            </Link>
             <Link
               href="/"
               className="flex min-h-9 items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
@@ -124,33 +156,29 @@ export function ManageDashboard({ items, userName }: { items: ContentItem[]; use
           </p>
         </div>
 
-        {items.length === 0 && (
-          <Card className="mb-8 border-dashed border-primary/40 bg-primary/5">
-            <CardContent className="flex flex-col items-start gap-3 p-6 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="font-medium">Your library is empty</p>
-                <p className="text-sm text-muted-foreground">
-                  Load a set of sample works to see how everything looks, then replace it with your
-                  own data.
-                </p>
-              </div>
-              <Button
-                onClick={() => startTransition(async () => { await seedDemoData(); router.refresh() })}
-                disabled={isPending}
-                className="rounded-full"
-              >
-                Load sample data
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
         <div className="grid gap-8 lg:grid-cols-2">
           <ManualForm isPending={isPending} startTransition={startTransition} />
           <CsvImport isPending={isPending} startTransition={startTransition} />
         </div>
 
         <WorksList items={items} isPending={isPending} startTransition={startTransition} />
+
+        <div className="mt-12">
+          <div className="mb-6 flex items-center gap-2">
+            <FlaskConical className="size-5 text-primary" />
+            <h2 className="font-serif text-2xl font-light tracking-tight">Research library</h2>
+          </div>
+          <p className="mb-6 max-w-2xl text-sm text-muted-foreground">
+            Add your research notes, experiment write-ups, and findings here. The{" "}
+            <span className="font-medium text-foreground">Coherence Engine</span> reads across
+            everything you store to find the connections and through-lines between your ideas.
+            Nothing here is shown publicly.
+          </p>
+          <div className="grid gap-8 lg:grid-cols-2">
+            <ResearchForm isPending={isPending} startTransition={startTransition} />
+            <ResearchList entries={research} isPending={isPending} startTransition={startTransition} />
+          </div>
+        </div>
       </main>
     </div>
   )
@@ -198,6 +226,8 @@ function ManualForm({
         type,
         side: resolvedSide,
         excerpt,
+        coverUrl: "",
+        link: "",
         words,
         platforms,
       })
@@ -382,7 +412,7 @@ function CsvImport({
     }
     startTransition(async () => {
       try {
-        const count = await importWorks(rows)
+        const count = await importWorks(rows as { title: string }[])
         setResult(`Imported ${count} work${count === 1 ? "" : "s"}.`)
         setText("")
         router.refresh()
@@ -449,6 +479,149 @@ function CsvImport({
             {error}
           </p>
         )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function ResearchForm({
+  isPending,
+  startTransition,
+}: {
+  isPending: boolean
+  startTransition: (cb: () => void) => void
+}) {
+  const router = useRouter()
+  const [title, setTitle] = useState("")
+  const [content, setContent] = useState("")
+  const [doi, setDoi] = useState("")
+  const [tags, setTags] = useState("")
+  const [saved, setSaved] = useState<string | null>(null)
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!title.trim()) return
+    startTransition(async () => {
+      await createResearchEntry({ title, content, doi, tags })
+      setSaved(title.trim())
+      setTitle("")
+      setContent("")
+      setDoi("")
+      setTags("")
+      router.refresh()
+    })
+  }
+
+  return (
+    <Card className="border-border/70">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 font-serif text-xl font-medium">
+          <Plus className="size-5 text-primary" /> Add a research entry
+        </CardTitle>
+        <CardDescription>Notes, experiments, findings — in your own words.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="grid gap-5">
+          <div className="grid gap-2">
+            <Label htmlFor="r-title">Title</Label>
+            <Input id="r-title" value={title} onChange={(e) => setTitle(e.target.value)} required className="text-base" />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="r-content">Notes / content</Label>
+            <Textarea
+              id="r-content"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Paste or type your research here. The more you add, the more connections the Coherence Engine can find."
+              className="min-h-40 text-base"
+            />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label htmlFor="r-doi">DOI (optional)</Label>
+              <Input id="r-doi" value={doi} onChange={(e) => setDoi(e.target.value)} placeholder="10.xxxx/xxxxx" className="text-base" />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="r-tags">Tags (optional)</Label>
+              <Input id="r-tags" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="water, coherence, physics" className="text-base" />
+            </div>
+          </div>
+          <Button type="submit" size="lg" disabled={isPending} className="min-h-11 rounded-full">
+            {isPending ? "Saving..." : "Save entry"}
+          </Button>
+          {saved && (
+            <div className="flex items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 p-3 text-sm">
+              <CheckCircle2 className="size-4 text-primary" />
+              <span>
+                <span className="font-semibold">{saved}</span> saved to your research library.
+              </span>
+            </div>
+          )}
+        </form>
+      </CardContent>
+    </Card>
+  )
+}
+
+function ResearchList({
+  entries,
+  isPending,
+  startTransition,
+}: {
+  entries: ResearchEntry[]
+  isPending: boolean
+  startTransition: (cb: () => void) => void
+}) {
+  const router = useRouter()
+
+  return (
+    <Card className="border-border/70">
+      <CardHeader>
+        <CardTitle className="font-serif text-xl font-medium">
+          Your research ({entries.length})
+        </CardTitle>
+        <CardDescription>Everything the Coherence Engine can read.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-2">
+        {entries.length === 0 && (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            No research entries yet. Add your first one to feed the Coherence Engine.
+          </p>
+        )}
+        {entries.map((entry) => (
+          <div
+            key={entry.id}
+            className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-card/50 p-3"
+          >
+            <div className="min-w-0">
+              <p className="truncate font-medium">{entry.title}</p>
+              {entry.content && (
+                <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{entry.content}</p>
+              )}
+              {(entry.doi || entry.tags) && (
+                <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                  {entry.doi && <span>DOI: {entry.doi}</span>}
+                  {entry.doi && entry.tags && <span> · </span>}
+                  {entry.tags && <span>{entry.tags}</span>}
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() =>
+                startTransition(async () => {
+                  await deleteResearchEntry(Number(entry.id))
+                  router.refresh()
+                })
+              }
+              className="shrink-0 rounded-md p-2 text-muted-foreground transition-colors hover:text-destructive disabled:opacity-50"
+              aria-label={`Delete ${entry.title}`}
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </div>
+        ))}
       </CardContent>
     </Card>
   )
