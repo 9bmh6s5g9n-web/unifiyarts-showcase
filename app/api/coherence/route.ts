@@ -9,8 +9,14 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible"
 export const maxDuration = 30
 
 // Cloudflare Workers AI, called through its OpenAI-compatible endpoint.
-// Needs CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN (Workers AI permission).
-const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID
+// The account ID is not a secret (it appears in the dashboard URL), so it's
+// baked in here. Only CLOUDFLARE_API_TOKEN (with Workers AI permission) is
+// needed as a secret env var. An env override still wins if provided.
+const KNOWN_ACCOUNT_ID = "adf6066eb05c2436e2a4c86ad6c214f0"
+// A real account ID is 32 hex characters. Only trust the env value if it looks
+// valid; otherwise use the known-good one so a mis-pasted value can't break it.
+const envAccountId = process.env.CLOUDFLARE_ACCOUNT_ID ?? ""
+const CF_ACCOUNT_ID = /^[0-9a-f]{32}$/i.test(envAccountId) ? envAccountId : KNOWN_ACCOUNT_ID
 const CF_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN
 const CF_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
 
