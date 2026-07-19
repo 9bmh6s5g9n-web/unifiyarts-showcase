@@ -7,10 +7,25 @@ import { CONTENT_TYPES, TYPE_LABEL, type ContentType } from "@/lib/types"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Eye } from "lucide-react"
+import { Eye, Download } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-export function ShowcaseGallery() {
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+// Deterministic UTC formatting so server and client render identical text (avoids hydration mismatch).
+function formatDate(iso: string) {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ""
+  return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`
+}
+
+export function ShowcaseGallery({
+  authed = false,
+  isEmpty = false,
+}: {
+  authed?: boolean
+  isEmpty?: boolean
+}) {
   const { items, world } = useLibrary()
   const [type, setType] = useState<ContentType | "all">("all")
 
@@ -39,6 +54,11 @@ export function ShowcaseGallery() {
             Every book, article, portfolio, video, and infographic in the{" "}
             {world === "fiction" ? "fiction" : "non-fiction"} collection.
           </p>
+          {isEmpty && authed && (
+            <p className="mx-auto mt-1 rounded-full bg-secondary px-4 py-1.5 text-xs text-muted-foreground">
+              This is your space. Open Manage to add your first works.
+            </p>
+          )}
         </div>
 
         <div className="mb-8 flex flex-wrap items-center justify-center gap-2">
@@ -72,9 +92,15 @@ export function ShowcaseGallery() {
                     <TypeIcon type={item.type} className="size-3.5" />
                     {TYPE_LABEL[item.type]}
                   </Badge>
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Eye className="size-3.5" />
-                    {item.views.toLocaleString()}
+                  <span className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Download className="size-3.5" />
+                      {item.downloads.toLocaleString()}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Eye className="size-3.5" />
+                      {item.views.toLocaleString()}
+                    </span>
                   </span>
                 </CardHeader>
                 <CardContent className="flex-1">
@@ -87,12 +113,7 @@ export function ShowcaseGallery() {
                 </CardContent>
                 <CardFooter className="justify-between border-t border-border/60 pt-4">
                   <span className="text-sm text-muted-foreground">{item.creator}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(item.createdAt).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </span>
+                  <span className="text-xs text-muted-foreground">{formatDate(item.createdAt)}</span>
                 </CardFooter>
               </Card>
             ))}
